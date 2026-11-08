@@ -88,6 +88,24 @@ body{overflow-x:hidden}
 /* Reset-Schaltfläche fügt sich in die bestehende Werkzeugleiste ein. */
 .reset-all{border-color:#71505a;color:#ffb4bd}
 .reset-all:hover{background:#38252d;border-color:#b47783}
+
+/* V2.4: orangefarbener laufender Kreis als dezente Aktivitätsanzeige */
+.channel.running .status::before {
+  content: "";
+  display: inline-block;
+  vertical-align: -2px;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border: 3px solid #ff971f;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: running-circle 1s linear infinite;
+}
+@keyframes running-circle { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .channel.running .status::before { animation-duration: 3s; }
+}
 </style>
 </head>
 <body>
