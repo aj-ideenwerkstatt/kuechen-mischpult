@@ -106,13 +106,35 @@ body{overflow-x:hidden}
 @media (prefers-reduced-motion: reduce) {
   .channel.running .status::before { animation-duration: 3s; }
 }
+
+/* V2.6: Ruhiges Blinken des vollständig sichtbaren Alarmbalkens. */
+.channel.finished{animation:none}
+.channel.alarming .fill{height:100%!important;animation:alarm-breathe 2.4s ease-in-out infinite;transition:none}
+@keyframes alarm-breathe{0%,100%{opacity:.85;filter:brightness(1)}50%{opacity:.22;filter:brightness(.8)}}
+.channel.alarming .meter{border-color:var(--channel)}
+.alarm-stop{background:#402d25;border:1px solid #ffad70;color:#ffe0c4;border-radius:9px;padding:11px 8px;font-size:clamp(12px,1vw,14px);font-weight:800;width:100%}
+.alarm-stop:hover{background:#56372a}
+@media(prefers-reduced-motion:reduce){.channel.alarming .fill{animation-duration:5s}}
+.sound-select{color:#e8edf4;min-width:106px;appearance:auto;-webkit-appearance:menulist}.sound-select option{background:#17212b;color:#f5f7fa}
+
+/* V2.8: Gleichmäßige obere Bedienleiste (Mac und iPad). */
+.topbar{flex-direction:column;align-items:stretch;gap:12px}
+.toolbar{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;width:100%;align-items:stretch}
+.toolbar > .toolbtn,.toolbar > .count-wrap{height:46px;width:100%;min-width:0;margin:0;border-radius:12px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+.toolbar > .toolbtn{padding:8px 7px;text-align:center;font-size:12px;line-height:1.2}
+.toolbar > .sound-select{display:block;text-align:center;text-align-last:center;appearance:auto;-webkit-appearance:menulist;padding:8px 4px}
+.toolbar > .count-wrap{padding:5px 7px;gap:6px}
+.toolbar > .count-wrap span{white-space:nowrap}
+.toolbar > .count-wrap select{min-width:0;max-width:100%;flex:1;padding:7px 5px;font-size:12px}
+@media(max-width:950px){.toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:540px){.toolbar{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.toolbar > .toolbtn,.toolbar > .count-wrap{height:43px}.toolbar > .toolbtn{font-size:11px;padding:7px 3px}.toolbar > .count-wrap select{font-size:11px}}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="topbar">
- <div class="brand"><div class="logo">▥</div><div><h1>KÜCHEN-MISCHPULT</h1><p>Multi-Timer · 8 Kanäle · Zwischenmarkierung · Version 2.3</p></div></div>
- <div class="toolbar"><div class="count-wrap"><span>Kanäle</span><select id="count" aria-label="Anzahl der Timer"></select></div><button class="toolbtn" id="sound">🔊 Ton an</button><button class="toolbtn" id="fullscreen">⛶ Vollbild</button><button class="toolbtn primary" id="allStart">▶ Alle starten</button><button class="toolbtn" id="allStop">Ⅱ Alle pausieren</button><button class="toolbtn reset-all" id="allReset" title="Alle acht Timer und Zwischenschritte löschen">↺ Alle zurücksetzen</button></div>
+ <div class="brand"><div class="logo">▥</div><div><h1>KÜCHEN-MISCHPULT</h1><p>Multi-Timer · 8 Kanäle · Zwischenmarkierung · Version 2.8</p></div></div>
+ <div class="toolbar"><div class="count-wrap"><span>Kanäle</span><select id="count" aria-label="Anzahl der Timer"></select></div><select class="toolbtn sound-select" id="sound" aria-label="Lautstärke des Tons"><option value="off">🔇 Ton aus</option><option value="low">🔈 Leise</option><option value="medium">🔉 Mittel</option><option value="high">🔊 Laut</option></select><button class="toolbtn" id="fullscreen">⛶ Vollbild</button><button class="toolbtn primary" id="allStart">▶ Alle starten</button><button class="toolbtn" id="allStop">Ⅱ Alle pausieren</button><button class="toolbtn reset-all" id="allReset" title="Alle acht Timer und Zwischenschritte löschen">↺ Alle zurücksetzen</button></div>
 </header>
 <main class="mixer" id="mixer" aria-label="Timer-Mischpult"></main>
 <footer class="footer"><span><span class="status-dot"></span><strong>Lokal im Browser</strong> · Neuer Start beginnt bei Null</span><span>Für den Dauerbetrieb Bildschirm-Sperre deaktivieren · Ton nach erster Bedienung</span></footer>
@@ -134,19 +156,54 @@ const colors=['#d4ef5a','#50d9e9','#fa9d56','#b596fc','#f77b9d','#83d99c','#f0d1
 const names=['Topf 1','Topf 2','Topf 3','Topf 4','Topf 5','Topf 6','Topf 7','Topf 8'];
 const $=s=>document.querySelector(s);
 function integer(n,fallback=0){let v=Number(n);return Number.isFinite(v)?Math.max(0,Math.floor(v)):fallback}
-function defaultTimer(i){return {name:names[i],h:0,m:0,s:0,duration:0,remaining:0,endAt:null,running:false,done:false,startedOnce:false,stepEnabled:false,stepName:'',stepH:0,stepM:0,stepFired:false,step2Enabled:false,step2Name:'',step2H:0,step2M:0,step2Fired:false}}
-let state={count:4,sound:true,timers:Array.from({length:8},(_,i)=>defaultTimer(i))};
+function defaultTimer(i){return {name:names[i],h:0,m:0,s:0,duration:0,remaining:0,endAt:null,running:false,done:false,startedOnce:false,stepEnabled:false,stepName:'',stepH:0,stepM:0,stepFired:false,step2Enabled:false,step2Name:'',step2H:0,step2M:0,step2Fired:false,alarmActive:false,nextAlarmAt:0}}
+let state={count:4,soundLevel:"high",timers:Array.from({length:8},(_,i)=>defaultTimer(i))};
 // Absichtlich kein Einlesen alter Timer-Werte: Jeder neue App-Start beginnt bei Null.
 // Auf dem aktuellen Bildschirm bleiben die Einstellungen bis zum Neuladen erhalten.
-const refs=new Map();let audio=null;let wake=null;let alertInterval=null;let toastTimeout=null;
+const refs=new Map();let audio=null;let wake=null;let alarmVoices=new Map();let toastTimeout=null;
 function save(){/* Neue Sitzung soll ausdrücklich immer leer beginnen. */}
 function seconds(h,m,s){return integer(h)*3600+integer(m)*60+integer(s)}
 function format(sec){const totalMinutes=Math.ceil(Math.max(0,sec)/60);const h=Math.floor(totalMinutes/60),m=totalMinutes%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`}
 function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.remove('hidden');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.add('hidden'),2600)}
 function primeAudio(){try{let C=window.AudioContext||window.webkitAudioContext;if(!C)return;if(!audio)audio=new C();if(audio.state==='suspended')audio.resume()}catch(e){}}
-function beep(){if(!state.sound)return;try{primeAudio();if(!audio)return;let t=audio.currentTime;for(let j=0;j<3;j++){const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=j===1?740:880;g.gain.setValueAtTime(0.0001,t+j*.27);g.gain.exponentialRampToValueAtTime(.18,t+j*.27+.025);g.gain.exponentialRampToValueAtTime(.0001,t+j*.27+.21);o.connect(g);g.connect(audio.destination);o.start(t+j*.27);o.stop(t+j*.27+.23)}}catch(e){}}
+function volume(){return {off:0,low:.12,medium:.32,high:.8}[state.soundLevel] ?? .8}
+function beep(){if(!volume())return;try{primeAudio();if(!audio)return;let t=audio.currentTime;for(let j=0;j<3;j++){const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=j===1?740:880;g.gain.setValueAtTime(0.0001,t+j*.27);g.gain.exponentialRampToValueAtTime(volume(),t+j*.27+.025);g.gain.exponentialRampToValueAtTime(.0001,t+j*.27+.21);o.connect(g);g.connect(audio.destination);o.start(t+j*.27);o.stop(t+j*.27+.23)}}catch(e){}}
+// Jeder abgelaufene Kanal besitzt sein eigenes akustisches Alarmsignal.
+// Neue Tonfolgen werden alle 3,2 Sekunden gestartet, bis der Kanal quittiert wird.
+function alarmBeep(i){
+ if(!volume())return;
+ try{
+  primeAudio();if(!audio)return;
+  const gain=audio.createGain();gain.gain.value=1;gain.connect(audio.destination);
+  const old=alarmVoices.get(i);if(old){try{old.gain.setValueAtTime(0,audio.currentTime)}catch(e){}}
+  alarmVoices.set(i,{gain});
+  const now=audio.currentTime;
+  for(let j=0;j<3;j++){
+   const osc=audio.createOscillator(),vol=audio.createGain();
+   osc.type='sine';osc.frequency.value=j===1?660:820;
+   const t=now+j*.28;
+   vol.gain.setValueAtTime(.0001,t);vol.gain.exponentialRampToValueAtTime(volume(),t+.025);vol.gain.exponentialRampToValueAtTime(.0001,t+.23);
+   osc.connect(vol);vol.connect(gain);osc.start(t);osc.stop(t+.24);
+  }
+ }catch(e){}
+}
+function stopAlarm(i){
+ const t=state.timers[i];t.alarmActive=false;t.nextAlarmAt=0;
+ const voice=alarmVoices.get(i);
+ if(voice&&audio){try{voice.gain.gain.cancelScheduledValues(audio.currentTime);voice.gain.gain.setValueAtTime(0,audio.currentTime)}catch(e){}}
+ alarmVoices.delete(i);
+ renderValues();
+}
+function processAlarms(){
+ const now=Date.now();
+ state.timers.forEach((t,i)=>{
+  if(t.alarmActive&&volume()>0&&now>=t.nextAlarmAt){
+   alarmBeep(i);t.nextAlarmAt=now+3200;
+  }
+ });
+}
 function notifyStep(i,n){beep();let t=state.timers[i];toast(`${t.name}: ${n===2?t.step2Name:t.stepName}`);if(navigator.vibrate)navigator.vibrate([100,80,100])}
-function notifyDone(i){beep();toast(`${state.timers[i].name}: Zeit abgelaufen!`);if(navigator.vibrate)navigator.vibrate([200,100,200])}
+function notifyDone(i){const t=state.timers[i];t.alarmActive=true;t.nextAlarmAt=0;processAlarms();toast(`${t.name}: Zeit abgelaufen!`);if(navigator.vibrate)navigator.vibrate([200,100,200])}
 function getRemaining(t){return t.running?Math.max(0,Math.ceil((t.endAt-Date.now())/1000)):t.remaining}
 function countdown(i){let t=state.timers[i];if(t.running){t.remaining=getRemaining(t);let elapsed=t.duration-t.remaining;let changed=false;
   for(const n of [1,2]){let prefix=n===1?'step':'step2';let mark=t[prefix+'H']*3600+t[prefix+'M']*60;if(t[prefix+'Enabled']&&!t[prefix+'Fired']&&mark>0&&mark<t.duration&&elapsed>=mark){t[prefix+'Fired']=true;changed=true;notifyStep(i,n)}}
@@ -154,7 +211,7 @@ function countdown(i){let t=state.timers[i];if(t.running){t.remaining=getRemaini
 
 function updateWake(){const should=state.timers.some(t=>t.running);if(should&&!wake&&'wakeLock' in navigator){navigator.wakeLock.request('screen').then(w=>{wake=w;w.addEventListener('release',()=>{wake=null})}).catch(()=>{})}else if(!should&&wake){wake.release().catch(()=>{});wake=null}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){state.timers.forEach((_,i)=>countdown(i));renderValues();updateWake()}});
-function changeDuration(i){let t=state.timers[i],r=refs.get(i);if(t.running)return;t.h=Math.min(99,integer(r.h.value));t.m=Math.min(59,integer(r.m.value));t.s=0;t.duration=seconds(t.h,t.m,0);t.remaining=t.duration;t.done=false;t.startedOnce=false;t.stepFired=false;t.step2Fired=false;r.h.value=t.h;r.m.value=t.m;save();renderValues()}
+function changeDuration(i){let t=state.timers[i],r=refs.get(i);if(t.running)return;stopAlarm(i);t.h=Math.min(99,integer(r.h.value));t.m=Math.min(59,integer(r.m.value));t.s=0;t.duration=seconds(t.h,t.m,0);t.remaining=t.duration;t.done=false;t.startedOnce=false;t.stepFired=false;t.step2Fired=false;r.h.value=t.h;r.m.value=t.m;save();renderValues()}
 
 let activePicker=null;
 function closePicker(){const box=$('#timeOverlay');box.hidden=true;activePicker=null}
@@ -190,13 +247,13 @@ $('#pickerClose').addEventListener('click',closePicker);
 $('#timeOverlay').addEventListener('click',e=>{if(e.target===$('#timeOverlay'))closePicker()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&activePicker)closePicker()});
 
-function start(i){let t=state.timers[i];if(t.running)return;if(t.done||t.remaining===0){t.remaining=t.duration;t.done=false;t.stepFired=false;t.step2Fired=false}if(!t.remaining){toast('Bitte zuerst eine Zeit einstellen.');return}primeAudio();t.endAt=Date.now()+t.remaining*1000;t.running=true;t.startedOnce=true;save();renderValues();updateWake()}
+function start(i){let t=state.timers[i];if(t.running)return;stopAlarm(i);if(t.done||t.remaining===0){t.remaining=t.duration;t.done=false;t.stepFired=false;t.step2Fired=false}if(!t.remaining){toast('Bitte zuerst eine Zeit einstellen.');return}primeAudio();t.endAt=Date.now()+t.remaining*1000;t.running=true;t.startedOnce=true;save();renderValues();updateWake()}
 function pause(i){const t=state.timers[i];if(!t.running)return;t.remaining=getRemaining(t);t.running=false;t.endAt=null;save();renderValues();updateWake()}
-function reset(i){let t=state.timers[i];t.running=false;t.done=false;t.endAt=null;t.remaining=t.duration;t.startedOnce=false;t.stepFired=false;t.step2Fired=false;save();renderValues();updateWake()}
+function reset(i){stopAlarm(i);let t=state.timers[i];t.running=false;t.done=false;t.endAt=null;t.remaining=t.duration;t.startedOnce=false;t.stepFired=false;t.step2Fired=false;save();renderValues();updateWake()}
 function layout(){const n=state.count;const w=window.innerWidth;const maxCols=w>=1250?4:w>=900?3:w>=620?2:1;const cols=Math.min(n,maxCols);const rows=Math.ceil(n/cols);$('#mixer').style.setProperty('--cols',cols);$('#mixer').style.setProperty('--rows',rows)}
-function render(){let mixer=$('#mixer');mixer.innerHTML='';refs.clear();layout();for(let i=0;i<state.count;i++){let t=state.timers[i],el=document.createElement('section');el.className='channel';el.style.setProperty('--channel',colors[i]);el.innerHTML=`<div class="ch-head"><span class="ch-label">TOPF ${i+1}</span><span class="ch-index">● TIMER</span></div><input class="name" aria-label="Name von Timer ${i+1}" maxlength="30" spellcheck="false" value=""/><div class="time" aria-label="Restzeit"></div><div class="track-wrap"><div class="meter" role="progressbar" aria-label="Restzeit in Prozent" aria-valuemin="0" aria-valuemax="100"><div class="fill"></div><div class="ticks"><i></i><i></i><i></i><i></i><i></i></div><div class="step-marker hidden" aria-label="Markierung für Zwischenschritt"><span class="marker-label"><strong class="marker-time"></strong><small class="marker-action"></small></span></div><div class="step-marker step-marker-2 hidden" aria-label="Markierung für zweiten Zwischenschritt"><span class="marker-label"><strong class="marker-time"></strong><small class="marker-action"></small></span></div></div></div><div class="status"></div><div class="step-info" aria-live="polite"></div><div class="control-block"><div class="duration"><label><input class="hours time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" min="0" max="99" inputmode="numeric" aria-label="Stunden"/> Std</label><label><input class="minutes time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" min="0" max="59" inputmode="numeric" aria-label="Minuten"/> Min</label></div><div class="buttons"><button class="chbtn go" data-action="toggle"></button><button class="chbtn" data-action="reset">↺ Reset</button></div></div><details class="step-panel"><summary>＋ Zwischenschritt einstellen</summary><div class="step-contents"><div class="step-row"><label><input class="step-on" type="checkbox"/> Erinnerung aktiv</label></div><input class="step-name" maxlength="45" aria-label="Aktion beim Zwischenschritt" placeholder="z. B. Pilze dazugeben"/><div class="step-row"><label>Nach</label><input class="step-h time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" min="0" max="99" inputmode="numeric" aria-label="Stunden bis Zwischenschritt"/><label>Std</label><input class="step-m time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" min="0" max="59" inputmode="numeric" aria-label="Minuten bis Zwischenschritt"/><label>Min</label></div><div class="step-action-caption" aria-live="polite"></div><div class="step-hint">Ab Start des Haupttimers · Hauptzeit läuft weiter</div><div class="step-warning" role="status"></div></div></details><details class="step-panel step-panel-2"><summary>＋ Zweiten Zwischenschritt einstellen</summary><div class="step-contents"><div class="step-row"><label><input class="step2-on" type="checkbox"/> Erinnerung aktiv</label></div><input class="step2-name step-name" maxlength="45" aria-label="Aktion beim zweiten Zwischenschritt" placeholder="z. B. Sauce abschmecken"/><div class="step-row"><label>Nach</label><input class="step2-h time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" aria-label="Stunden bis zum zweiten Zwischenschritt"/><label>Std</label><input class="step2-m time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" aria-label="Minuten bis zum zweiten Zwischenschritt"/><label>Min</label></div><div class="step2-action-caption step-action-caption" aria-live="polite"></div><div class="step-hint">Ab Start des Haupttimers · Hauptzeit läuft weiter</div><div class="step2-warning step-warning" role="status"></div></div></details>`;
- const r={el,name:el.querySelector('.name'),time:el.querySelector('.time'),fill:el.querySelector('.fill'),meter:el.querySelector('.meter'),marker:el.querySelector('.step-marker'),marker2:el.querySelector('.step-marker-2'),status:el.querySelector('.status'),stepInfo:el.querySelector('.step-info'),stepWarning:el.querySelector('.step-warning'),h:el.querySelector('.hours'),m:el.querySelector('.minutes'),toggle:el.querySelector('[data-action="toggle"]'),reset:el.querySelector('[data-action="reset"]'),stepPanel:el.querySelector('.step-panel'),stepPanel2:el.querySelector('.step-panel-2'),step2Warning:el.querySelector('.step2-warning'),step2On:el.querySelector('.step2-on'),step2Name:el.querySelector('.step2-name'),step2ActionCaption:el.querySelector('.step2-action-caption'),step2H:el.querySelector('.step2-h'),step2M:el.querySelector('.step2-m'),stepOn:el.querySelector('.step-on'),stepName:el.querySelector('.step-name'),stepActionCaption:el.querySelector('.step-action-caption'),stepH:el.querySelector('.step-h'),stepM:el.querySelector('.step-m')};r.name.value=t.name;r.h.value=t.h;r.m.value=t.m;r.stepOn.checked=t.stepEnabled;r.stepName.value=t.stepName;r.stepH.value=t.stepH;r.stepM.value=t.stepM;r.step2On.checked=t.step2Enabled;r.step2Name.value=t.step2Name;r.step2H.value=t.step2H;r.step2M.value=t.step2M;
- r.name.addEventListener('input',()=>{t.name=r.name.value;save()});[[r.h,'h',false],[r.m,'m',false],[r.stepH,'h',1],[r.stepM,'m',1],[r.step2H,'h',2],[r.step2M,'m',2]].forEach(([field,key,step])=>field.addEventListener('click',()=>openPicker(i,key,step)));r.toggle.addEventListener('click',()=>{t.running?pause(i):start(i)});r.reset.addEventListener('click',()=>reset(i));function setStep(){t.stepEnabled=r.stepOn.checked;t.stepName=r.stepName.value.trim();t.stepH=Math.min(99,integer(r.stepH.value));t.stepM=Math.min(59,integer(r.stepM.value));r.stepH.value=t.stepH;r.stepM.value=t.stepM;r.step2On.checked=t.step2Enabled;r.step2Name.value=t.step2Name;r.step2H.value=t.step2H;r.step2M.value=t.step2M;t.stepFired=false;save();renderValues()}[r.stepOn,r.stepName,r.stepH,r.stepM].forEach(node=>node.addEventListener('change',setStep));r.stepName.addEventListener('input',()=>{t.stepName=r.stepName.value.trim();r.stepActionCaption.textContent=t.stepName||'Noch keine Aktion eingetragen';save();renderValues()});function setStep2(){t.step2Enabled=r.step2On.checked;t.step2Name=r.step2Name.value.trim();t.step2H=Math.min(99,integer(r.step2H.value));t.step2M=Math.min(59,integer(r.step2M.value));r.step2H.value=t.step2H;r.step2M.value=t.step2M;t.step2Fired=false;save();renderValues()}
+function render(){let mixer=$('#mixer');mixer.innerHTML='';refs.clear();layout();for(let i=0;i<state.count;i++){let t=state.timers[i],el=document.createElement('section');el.className='channel';el.style.setProperty('--channel',colors[i]);el.innerHTML=`<div class="ch-head"><span class="ch-label">TOPF ${i+1}</span><span class="ch-index">● TIMER</span></div><input class="name" aria-label="Name von Timer ${i+1}" maxlength="30" spellcheck="false" value=""/><div class="time" aria-label="Restzeit"></div><div class="track-wrap"><div class="meter" role="progressbar" aria-label="Restzeit in Prozent" aria-valuemin="0" aria-valuemax="100"><div class="fill"></div><div class="ticks"><i></i><i></i><i></i><i></i><i></i></div><div class="step-marker hidden" aria-label="Markierung für Zwischenschritt"><span class="marker-label"><strong class="marker-time"></strong><small class="marker-action"></small></span></div><div class="step-marker step-marker-2 hidden" aria-label="Markierung für zweiten Zwischenschritt"><span class="marker-label"><strong class="marker-time"></strong><small class="marker-action"></small></span></div></div></div><div class="status"></div><div class="step-info" aria-live="polite"></div><div class="control-block"><div class="duration"><label><input class="hours time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" min="0" max="99" inputmode="numeric" aria-label="Stunden"/> Std</label><label><input class="minutes time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" min="0" max="59" inputmode="numeric" aria-label="Minuten"/> Min</label></div><div class="buttons"><button class="chbtn go" data-action="toggle"></button><button class="chbtn" data-action="reset">↺ Reset</button></div><button class="alarm-stop hidden" type="button" data-action="alarm-stop">🔕 Signal stoppen</button></div><details class="step-panel"><summary>＋ Zwischenschritt einstellen</summary><div class="step-contents"><div class="step-row"><label><input class="step-on" type="checkbox"/> Erinnerung aktiv</label></div><input class="step-name" maxlength="45" aria-label="Aktion beim Zwischenschritt" placeholder="z. B. Pilze dazugeben"/><div class="step-row"><label>Nach</label><input class="step-h time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" min="0" max="99" inputmode="numeric" aria-label="Stunden bis Zwischenschritt"/><label>Std</label><input class="step-m time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" min="0" max="59" inputmode="numeric" aria-label="Minuten bis Zwischenschritt"/><label>Min</label></div><div class="step-action-caption" aria-live="polite"></div><div class="step-hint">Ab Start des Haupttimers · Hauptzeit läuft weiter</div><div class="step-warning" role="status"></div></div></details><details class="step-panel step-panel-2"><summary>＋ Zweiten Zwischenschritt einstellen</summary><div class="step-contents"><div class="step-row"><label><input class="step2-on" type="checkbox"/> Erinnerung aktiv</label></div><input class="step2-name step-name" maxlength="45" aria-label="Aktion beim zweiten Zwischenschritt" placeholder="z. B. Sauce abschmecken"/><div class="step-row"><label>Nach</label><input class="step2-h time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" aria-label="Stunden bis zum zweiten Zwischenschritt"/><label>Std</label><input class="step2-m time-pick" type="text" readonly inputmode="none" title="Antippen zum Einstellen" aria-label="Minuten bis zum zweiten Zwischenschritt"/><label>Min</label></div><div class="step2-action-caption step-action-caption" aria-live="polite"></div><div class="step-hint">Ab Start des Haupttimers · Hauptzeit läuft weiter</div><div class="step2-warning step-warning" role="status"></div></div></details>`;
+ const r={el,name:el.querySelector('.name'),time:el.querySelector('.time'),fill:el.querySelector('.fill'),meter:el.querySelector('.meter'),marker:el.querySelector('.step-marker'),marker2:el.querySelector('.step-marker-2'),status:el.querySelector('.status'),stepInfo:el.querySelector('.step-info'),stepWarning:el.querySelector('.step-warning'),h:el.querySelector('.hours'),m:el.querySelector('.minutes'),toggle:el.querySelector('[data-action="toggle"]'),reset:el.querySelector('[data-action="reset"]'),alarmStop:el.querySelector('[data-action="alarm-stop"]'),stepPanel:el.querySelector('.step-panel'),stepPanel2:el.querySelector('.step-panel-2'),step2Warning:el.querySelector('.step2-warning'),step2On:el.querySelector('.step2-on'),step2Name:el.querySelector('.step2-name'),step2ActionCaption:el.querySelector('.step2-action-caption'),step2H:el.querySelector('.step2-h'),step2M:el.querySelector('.step2-m'),stepOn:el.querySelector('.step-on'),stepName:el.querySelector('.step-name'),stepActionCaption:el.querySelector('.step-action-caption'),stepH:el.querySelector('.step-h'),stepM:el.querySelector('.step-m')};r.name.value=t.name;r.h.value=t.h;r.m.value=t.m;r.stepOn.checked=t.stepEnabled;r.stepName.value=t.stepName;r.stepH.value=t.stepH;r.stepM.value=t.stepM;r.step2On.checked=t.step2Enabled;r.step2Name.value=t.step2Name;r.step2H.value=t.step2H;r.step2M.value=t.step2M;
+ r.name.addEventListener('input',()=>{t.name=r.name.value;save()});[[r.h,'h',false],[r.m,'m',false],[r.stepH,'h',1],[r.stepM,'m',1],[r.step2H,'h',2],[r.step2M,'m',2]].forEach(([field,key,step])=>field.addEventListener('click',()=>openPicker(i,key,step)));r.toggle.addEventListener('click',()=>{t.running?pause(i):start(i)});r.reset.addEventListener('click',()=>reset(i));r.alarmStop.addEventListener('click',()=>stopAlarm(i));function setStep(){t.stepEnabled=r.stepOn.checked;t.stepName=r.stepName.value.trim();t.stepH=Math.min(99,integer(r.stepH.value));t.stepM=Math.min(59,integer(r.stepM.value));r.stepH.value=t.stepH;r.stepM.value=t.stepM;r.step2On.checked=t.step2Enabled;r.step2Name.value=t.step2Name;r.step2H.value=t.step2H;r.step2M.value=t.step2M;t.stepFired=false;save();renderValues()}[r.stepOn,r.stepName,r.stepH,r.stepM].forEach(node=>node.addEventListener('change',setStep));r.stepName.addEventListener('input',()=>{t.stepName=r.stepName.value.trim();r.stepActionCaption.textContent=t.stepName||'Noch keine Aktion eingetragen';save();renderValues()});function setStep2(){t.step2Enabled=r.step2On.checked;t.step2Name=r.step2Name.value.trim();t.step2H=Math.min(99,integer(r.step2H.value));t.step2M=Math.min(59,integer(r.step2M.value));r.step2H.value=t.step2H;r.step2M.value=t.step2M;t.step2Fired=false;save();renderValues()}
  [r.step2On,r.step2Name,r.step2H,r.step2M].forEach(node=>node.addEventListener('change',setStep2));r.step2Name.addEventListener('input',()=>{t.step2Name=r.step2Name.value.trim();save();renderValues()});
  refs.set(i,r);mixer.appendChild(el)}renderValues()}
 function renderValues(){for(let i=0;i<state.count;i++){
@@ -237,24 +294,40 @@ function renderValues(){for(let i=0;i<state.count;i++){
  r.stepInfo.style.color=invalidAny?'#ffc46b':'#cdd7e3';
  r.meter.setAttribute('aria-valuenow',String(Math.round(pct)));
  r.status.textContent=t.done?'ZEIT ABGELAUFEN':lastTriggered?'ZWISCHENSCHRITT ERREICHT · '+lastTriggered:t.running?'LÄUFT':t.startedOnce?'PAUSIERT':'BEREIT';
- r.el.classList.toggle('finished',t.done);r.el.classList.toggle('running',t.running);
+ r.el.classList.toggle('finished',t.done);r.el.classList.toggle('running',t.running);r.el.classList.toggle('alarming',t.alarmActive);r.alarmStop.classList.toggle('hidden',!t.alarmActive);
  r.toggle.textContent=t.running?'Ⅱ Pause':t.done?'▶ Neustart':t.startedOnce?'▶ Weiter':'▶ Start';
  [r.h,r.m,r.stepH,r.stepM,r.stepOn,r.step2H,r.step2M,r.step2On].forEach(input=>input.disabled=t.running);
 }}
 
-function tick(){state.timers.forEach((t,i)=>{if(t.running)countdown(i)});renderValues();updateWake()}
+function tick(){state.timers.forEach((t,i)=>{if(t.running)countdown(i)});processAlarms();renderValues();updateWake()}
 for(let n=1;n<=8;n++){let op=document.createElement('option');op.value=n;op.textContent=n+' Timer';$('#count').appendChild(op)}$('#count').value=state.count;$('#count').addEventListener('change',e=>{closePicker();state.count=integer(e.target.value,3);save();render()});
-$('#sound').addEventListener('click',()=>{state.sound=!state.sound;updateSound();if(state.sound)primeAudio();save()});function updateSound(){$('#sound').textContent=state.sound?'🔊 Ton an':'🔇 Ton aus'}updateSound();
+// Lautstärke gilt für Zwischenhinweise und den wiederholten Ablaufalarm.
+$('#sound').value=state.soundLevel;
+$('#sound').addEventListener('change',e=>{
+ state.soundLevel=e.target.value;
+ for(const voice of alarmVoices.values()){
+  if(audio)try{voice.gain.gain.cancelScheduledValues(audio.currentTime);voice.gain.gain.setValueAtTime(0,audio.currentTime)}catch(e){}
+ }
+ alarmVoices.clear();
+ if(volume()>0){
+  primeAudio();
+  // Neue Einstellung ohne Verzögerung auf laufende Alarme anwenden.
+  state.timers.forEach(t=>{if(t.alarmActive)t.nextAlarmAt=0});
+ }
+ processAlarms();save();
+});
 $('#fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else toast('Vollbild ist in diesem Browser nicht verfügbar.')}catch(e){toast('Vollbild konnte nicht aktiviert werden.')}});
 $('#allStart').addEventListener('click',()=>{primeAudio();for(let i=0;i<state.count;i++)if(!state.timers[i].running&&state.timers[i].duration)start(i)});
 $('#allStop').addEventListener('click',()=>{for(let i=0;i<state.count;i++)pause(i)});
+// Alle Timer ohne Browser-Bestaetigungsdialog zuruecksetzen.
+// Die Anzahl sichtbarer Kanaele sowie die Toneinstellung bleiben erhalten.
 $('#allReset').addEventListener('click',()=>{
- if(!window.confirm('Alle 8 Timer zurücksetzen?\n\nSämtliche Zeiten, Namen und Zwischenschritte werden gelöscht. Laufende Timer werden gestoppt.'))return;
  closePicker();
- const visibleCount=state.count;
+ for(let i=0;i<8;i++)stopAlarm(i);
  state.timers=Array.from({length:8},(_,i)=>defaultTimer(i));
- state.count=visibleCount;
- render();updateWake();toast('Alle 8 Timer wurden zurückgesetzt.');
+ render();
+ updateWake();
+ toast('Alle 8 Timer wurden zurückgesetzt.');
 });
 window.addEventListener('resize',layout);render();tick();setInterval(tick,250);
 })();
