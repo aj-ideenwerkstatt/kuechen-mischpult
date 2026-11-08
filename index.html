@@ -119,7 +119,7 @@ body{overflow-x:hidden}
 
 /* V2.8: Gleichmäßige obere Bedienleiste (Mac und iPad). */
 .topbar{flex-direction:column;align-items:stretch;gap:12px}
-.toolbar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px;width:100%;align-items:stretch}
+.toolbar{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:9px;width:100%;align-items:stretch}
 .toolbar > .toolbtn,.toolbar > .count-wrap{height:46px;width:100%;min-width:0;margin:0;border-radius:12px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
 .toolbar > .toolbtn{padding:8px 7px;text-align:center;font-size:12px;line-height:1.2}
 .toolbar > .sound-select{display:block;text-align:center;text-align-last:center;appearance:auto;-webkit-appearance:menulist;padding:8px 4px}
@@ -144,13 +144,40 @@ body{overflow-x:hidden}
 .channel.menu-due .menu-start{background:#ffbc71;border-color:#ffbc71}
 .menu-late{color:#ffbf86;font-size:11px;text-align:center;font-weight:800;min-height:0}
 @media(max-width:540px){.menu-wait strong{font-size:22px}.menu-banner{font-size:12px;padding:8px}}
+
+/* V3.1: Bedienungsanleitung im eigenen Dialog; der Timer läuft im Hintergrund weiter. */
+.guide-button{border-color:#5a6d76;color:#e9f4ff}
+.guide-overlay[hidden]{display:none!important}
+.guide-overlay{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:clamp(10px,2vw,28px);background:rgba(3,7,11,.84);backdrop-filter:blur(5px)}
+.guide-dialog{width:min(960px,100%);max-height:min(90dvh,920px);min-height:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid #536676;border-radius:20px;background:#141e28;box-shadow:0 28px 80px #000c;color:#f1f5f9}
+.guide-head{padding:19px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px;border-bottom:1px solid #354654;flex-shrink:0}
+.guide-head h2{font-size:clamp(19px,2.5vw,26px);margin:0}.guide-head p{font-size:12px;color:#9bafc0;margin:5px 0 0}
+.guide-close{background:#2a3947;border:1px solid #64798a;border-radius:11px;color:white;padding:10px 15px;white-space:nowrap;font-weight:750}
+.guide-tabs{padding:12px 18px;display:flex;gap:8px;overflow-x:auto;flex-shrink:0;border-bottom:1px solid #354654;scrollbar-width:thin}
+.guide-tab{background:#1d2d39;color:#d7e3ed;border:1px solid #4a5d6f;border-radius:10px;padding:11px 15px;white-space:nowrap;font-weight:700;font-size:13px;flex-shrink:0}
+.guide-tab[aria-selected="true"]{background:#d5f35d;color:#14200f;border-color:#d5f35d}
+.guide-content{overflow-y:auto;overscroll-behavior:contain;min-height:0;flex:1;padding:clamp(17px,2.5vw,30px);font-size:15px;line-height:1.65}
+.guide-section[hidden]{display:none!important}
+.guide-section h3{font-size:21px;color:#d5f35d;margin:0 0 12px}
+.guide-section h4{font-size:16px;color:#eef6fd;margin:23px 0 6px}
+.guide-section p{margin:0 0 15px;color:#dbe5ee}
+.guide-section ol,.guide-section ul{padding-left:23px;margin:9px 0 20px}.guide-section li{margin:7px 0}
+.guide-section strong{color:#fff}
+.guide-example{border:1px solid #435a64;border-left:4px solid #d5f35d;background:#1c2b33;padding:14px 17px;border-radius:10px;margin:16px 0}
+.guide-example p:last-child{margin-bottom:0}
+.guide-table{width:100%;border-collapse:collapse;margin:13px 0 18px;font-size:14px}
+.guide-table th,.guide-table td{text-align:left;border-bottom:1px solid #3b4d5c;padding:9px 11px;vertical-align:top}
+.guide-table th{color:#d5f35d;font-weight:800}
+.guide-footer{padding:11px 21px;border-top:1px solid #354654;color:#9dafbf;font-size:12px;flex-shrink:0}
+body.guide-open{overflow:hidden}
+@media(max-width:600px){.guide-overlay{padding:7px;align-items:stretch}.guide-dialog{max-height:none;height:calc(100dvh - 14px);border-radius:14px}.guide-head{padding:13px 14px}.guide-head h2{font-size:18px}.guide-close{padding:8px 10px}.guide-tabs{padding:9px}.guide-tab{padding:9px 11px;font-size:12px}.guide-content{font-size:14px;padding:16px}.guide-section h3{font-size:19px}.guide-footer{padding:8px 14px}}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="topbar">
- <div class="brand"><div class="logo">▥</div><div><h1>KÜCHEN-MISCHPULT</h1><p>Multi-Timer · 8 Kanäle · Zwischenmarkierung · Version 3.0</p></div></div>
- <div class="toolbar"><div class="count-wrap"><span>Kanäle</span><select id="count" aria-label="Anzahl der Timer"></select></div><select class="toolbtn sound-select" id="sound" aria-label="Lautstärke des Tons"><option value="off">🔇 Ton aus</option><option value="low">🔈 Leise</option><option value="medium">🔉 Mittel</option><option value="high">🔊 Laut</option></select><button class="toolbtn menu-switch" id="menuSwitch" aria-pressed="false">🍽 Menü-Modus</button><button class="toolbtn" id="fullscreen">⛶ Vollbild</button><button class="toolbtn primary" id="allStart">▶ Alle starten</button><button class="toolbtn" id="allStop">Ⅱ Alle pausieren</button><button class="toolbtn reset-all" id="allReset" title="Alle acht Timer und Zwischenschritte löschen">↺ Alle zurücksetzen</button></div>
+ <div class="brand"><div class="logo">▥</div><div><h1>KÜCHEN-MISCHPULT</h1><p>Multi-Timer · 8 Kanäle · Zwischenmarkierung · Version 3.1</p></div></div>
+ <div class="toolbar"><div class="count-wrap"><span>Kanäle</span><select id="count" aria-label="Anzahl der Timer"></select></div><select class="toolbtn sound-select" id="sound" aria-label="Lautstärke des Tons"><option value="off">🔇 Ton aus</option><option value="low">🔈 Leise</option><option value="medium">🔉 Mittel</option><option value="high">🔊 Laut</option></select><button class="toolbtn menu-switch" id="menuSwitch" aria-pressed="false">🍽 Menü-Modus</button><button class="toolbtn guide-button" id="guideOpen" type="button" aria-haspopup="dialog" aria-controls="guideOverlay">? Anleitung</button><button class="toolbtn" id="fullscreen">⛶ Vollbild</button><button class="toolbtn primary" id="allStart">▶ Alle starten</button><button class="toolbtn" id="allStop">Ⅱ Alle pausieren</button><button class="toolbtn reset-all" id="allReset" title="Alle acht Timer und Zwischenschritte löschen">↺ Alle zurücksetzen</button></div>
 </header>
 <div class="menu-banner hidden" id="menuBanner" role="status"></div>
 <main class="mixer" id="mixer" aria-label="Timer-Mischpult"></main>
@@ -164,6 +191,63 @@ body{overflow-x:hidden}
     <input type="range" id="pickerRange" class="picker-range" min="0" max="99" step="1" value="0" aria-label="Zeit einstellen"/>
     <div class="picker-range-labels"><span>0</span><span id="pickerMax">99</span></div>
     <div class="picker-actions"><button type="button" id="pickerMinus" aria-label="Eins weniger">− 1</button><button type="button" id="pickerPlus" aria-label="Eins mehr">+ 1</button><button type="button" id="pickerDone" class="picker-done">Fertig</button></div>
+  </div>
+</div>
+<div class="guide-overlay" id="guideOverlay" hidden>
+  <div class="guide-dialog" role="dialog" aria-modal="true" aria-labelledby="guideTitle" aria-describedby="guideSubtitle">
+    <header class="guide-head"><div><h2 id="guideTitle">Küchen-Mischpult · Anleitung</h2><p id="guideSubtitle">Bedienungsanleitung · Version 3.1</p></div><button class="guide-close" id="guideClose" type="button" aria-label="Anleitung schließen">✕ Schließen</button></header>
+    <nav class="guide-tabs" role="tablist" aria-label="Kapitel der Bedienungsanleitung">
+      <button class="guide-tab" role="tab" id="guideTab-overview" aria-controls="guidePage-overview" aria-selected="true" data-guide="overview" type="button">Überblick</button>
+      <button class="guide-tab" role="tab" id="guideTab-timer" aria-controls="guidePage-timer" aria-selected="false" tabindex="-1" data-guide="timer" type="button">Timer</button>
+      <button class="guide-tab" role="tab" id="guideTab-steps" aria-controls="guidePage-steps" aria-selected="false" tabindex="-1" data-guide="steps" type="button">Zwischenschritte</button>
+      <button class="guide-tab" role="tab" id="guideTab-menu" aria-controls="guidePage-menu" aria-selected="false" tabindex="-1" data-guide="menu" type="button">Menü-Modus</button>
+      <button class="guide-tab" role="tab" id="guideTab-audio" aria-controls="guidePage-audio" aria-selected="false" tabindex="-1" data-guide="audio" type="button">Ton &amp; Einstellungen</button>
+      <button class="guide-tab" role="tab" id="guideTab-tips" aria-controls="guidePage-tips" aria-selected="false" tabindex="-1" data-guide="tips" type="button">Tipps</button>
+    </nav>
+    <div class="guide-content" id="guideContent">
+      <section class="guide-section" role="tabpanel" id="guidePage-overview" aria-labelledby="guideTab-overview" data-guide-page="overview">
+        <h3>Willkommen beim Küchen-Mischpult!</h3>
+        <p>Bis zu <strong>acht unabhängige Timer</strong> helfen dir, beim Kochen den Überblick zu behalten. Die großen, farbigen Zeitbalken zeigen die verbleibende Zeit an. Beim Öffnen erscheinen vier Timer; du kannst ihre Anzahl oben ändern.</p>
+        <div class="guide-example"><strong>Zwei Betriebsarten</strong><p><strong>Normaler Timer-Modus:</strong> Jeder Topf läuft unabhängig.</p><p><strong>Menü-Modus:</strong> Ein Master bestimmt das geplante gemeinsame Ende. Die anderen Gerichte werden zum richtigen Startzeitpunkt aufgerufen.</p></div>
+        <p>Die Anleitung kannst du jederzeit öffnen und wieder schließen. <strong>Laufende Timer zählen währenddessen weiter.</strong></p>
+        <p>Zum Einstieg: Gericht benennen, Stunden und Minuten einstellen und auf <strong>▶ Start</strong> drücken.</p>
+      </section>
+      <section class="guide-section" role="tabpanel" id="guidePage-timer" aria-labelledby="guideTab-timer" data-guide-page="timer" hidden>
+        <h3>Deinen Timer bedienen</h3>
+        <ol><li><strong>Benennen:</strong> Tippe auf „Topf 1“ und schreibe z. B. „Gans“, „Sauce“ oder „Rotkohl“.</li><li><strong>Zeit einstellen:</strong> Tippe auf die Stunden oder Minuten. Im geöffneten Regler kannst du die Zeit per Schieber oder mit +/− verändern. Mit „Fertig“ schließen.</li><li><strong>Starten:</strong> Mit ▶ Start beginnt der Countdown. Der farbige Balken wird kleiner; der orange Kreis signalisiert einen laufenden Timer.</li><li><strong>Pausieren:</strong> Über Ⅱ Pause anhalten und mit ▶ Weiter fortsetzen.</li><li><strong>Reset:</strong> ↺ Reset im Kanal setzt ihn auf die zuvor eingestellte Zeit zurück. Der Eintrag bleibt erhalten.</li></ol>
+        <p>Die Anzeige erfolgt in <strong>Stunden und Minuten</strong>; Sekunden werden nicht eingeblendet.</p>
+        <div class="guide-example"><strong>Beispiel:</strong> Für 1 Stunde und 30 Minuten trägst du bei Std „01“ und bei Min „30“ ein. Danach ▶ Start drücken.</div>
+      </section>
+      <section class="guide-section" role="tabpanel" id="guidePage-steps" aria-labelledby="guideTab-steps" data-guide-page="steps" hidden>
+        <h3>Zwischenschritte und Erinnerungen</h3>
+        <p>Jeder Timer bietet <strong>zwei optionale Zwischenschritte</strong>, beispielsweise zum Begießen, Umrühren oder Hinzufügen von Zutaten.</p>
+        <ol><li>Öffne unter dem Timer „＋ Zwischenschritt einstellen“.</li><li>Aktiviere „Erinnerung aktiv“.</li><li>Schreibe die gewünschte Tätigkeit hinein, z. B. „Pilze dazugeben“.</li><li>Wähle bei „Nach“ den Zeitpunkt seit Beginn der Zubereitung.</li><li>Für eine zweite Tätigkeit den zweiten Zwischenschritt genauso einstellen.</li></ol>
+        <p>Die Erinnerungszeit muss <strong>größer als null und kleiner als die gesamte Kochzeit</strong> sein. Am Zeitpunkt ertönt ein Signal und die Markierung auf dem Balken wird als erledigt dargestellt. <strong>Der Haupttimer läuft weiter.</strong></p>
+        <div class="guide-example"><strong>Beispiel:</strong> Gesamtzeit 02:00. Nach 00:45 „Pilze dazugeben“, nach 01:30 „Sauce abschmecken“.</div>
+      </section>
+      <section class="guide-section" role="tabpanel" id="guidePage-menu" aria-labelledby="guideTab-menu" data-guide-page="menu" hidden>
+        <h3>Menü-Modus: Gemeinsam fertig werden</h3>
+        <p>Der Menü-Modus berechnet, <strong>wann die weiteren Gerichte beginnen sollen</strong>, damit sie zum geplanten Ende des Master-Gerichts fertig werden.</p>
+        <div class="guide-example"><strong>Beispiel Weihnachtsmenü</strong><table class="guide-table"><thead><tr><th>Gericht</th><th>Zeit</th><th>Beginn</th></tr></thead><tbody><tr><td>Gans (Master)</td><td>03:00</td><td>Sofort</td></tr><tr><td>Rotkohl</td><td>01:00</td><td>Nach 02:00</td></tr><tr><td>Klöße</td><td>00:25</td><td>Nach 02:35</td></tr></tbody></table></div>
+        <h4>Schritt für Schritt</h4>
+        <ol><li>Oben <strong>🍽 Menü-Modus</strong> einschalten, bevor du die Timer startest.</li><li>Alle Gerichte benennen und ihre jeweiligen Zubereitungszeiten einstellen.</li><li>Im gewünschten Kanal <strong>„Master festlegen“</strong> wählen. Der Master sollte die längste Zubereitungszeit haben.</li><li>Mit <strong>▶ Alle starten</strong> den Menüablauf beginnen. Dabei startet zunächst der Master; die anderen warten auf ihre jeweiligen Startzeiten.</li><li>Auf den weiteren Zeitbalken erscheint die Anzeige <strong>„START IN“</strong>, die herunterzählt.</li><li>Wenn der Start fällig ist, blinkt der Kanal langsam und ein Signal ertönt. Beginne das Gericht und drücke danach <strong>„✓ Jetzt gestartet“</strong>.</li><li>Erst nach dieser Bestätigung läuft dessen eigene Kochzeit. Bei verspätetem Start wird eine voraussichtliche Abweichung vom geplanten gemeinsamen Ende angezeigt.</li></ol>
+        <p><strong>Wichtig:</strong> Die App startet kein Gericht automatisch. Der Button bestätigt, dass du wirklich begonnen hast. Kochzeiten und Garzustand musst du selbst beurteilen.</p>
+        <p>Wenn der Master pausiert, pausiert der Zeitplan für noch nicht begonnene Gerichte. Bereits gestartete Gericht-Timer musst du bei Bedarf separat pausieren.</p>
+      </section>
+      <section class="guide-section" role="tabpanel" id="guidePage-audio" aria-labelledby="guideTab-audio" data-guide-page="audio" hidden>
+        <h3>Ton, Signale und obere Leiste</h3>
+        <p>Du kannst die Tonlautstärke oben einstellen: <strong>Ton aus · Leise · Mittel · Laut</strong>. Die Einstellung gilt für Zwischenschritte und Ablaufalarme.</p>
+        <p>Nach Ablauf ertönt ein <strong>wiederkehrendes Tonsignal</strong>. Der betreffende Balken blinkt langsam. Über <strong>„🔕 Signal stoppen“</strong> werden Ton und Blinken für diesen Kanal beendet.</p>
+        <table class="guide-table"><thead><tr><th>Oben</th><th>Funktion</th></tr></thead><tbody><tr><td>Kanäle</td><td>1 bis 8 Timer anzeigen</td></tr><tr><td>Ton</td><td>Lautstärke auswählen</td></tr><tr><td>Menü-Modus</td><td>Gemeinsame Menüplanung einschalten</td></tr><tr><td>? Anleitung</td><td>Diese Anleitung öffnen</td></tr><tr><td>Vollbild</td><td>Vollbildmodus, falls verfügbar</td></tr><tr><td>Alle starten</td><td>Normale Timer gemeinsam starten; im Menü-Modus den Master starten</td></tr><tr><td>Alle pausieren</td><td>Alle laufenden sichtbaren Timer pausieren</td></tr><tr><td>Alle zurücksetzen</td><td>Alle acht Timer, Namen und Zwischenschritte löschen</td></tr></tbody></table>
+        <p>„Alle zurücksetzen“ lässt die gewählte Zahl sichtbarer Kanäle und die Toneinstellung bestehen.</p>
+      </section>
+      <section class="guide-section" role="tabpanel" id="guidePage-tips" aria-labelledby="guideTab-tips" data-guide-page="tips" hidden>
+        <h3>Tipps fürs entspannte Kochen</h3>
+        <ul><li><strong>Zeiten realistisch wählen:</strong> Beachte bei einem Menü auch Vorheizen, Vorbereiten und Ruhezeiten, soweit sie in deinem Zeitplan enthalten sein sollen.</li><li><strong>Kurze Namen verwenden:</strong> „Rotkohl“ oder „Klöße“ bleiben auf kleinen Bildschirmen gut lesbar.</li><li><strong>Ton vorher testen:</strong> Gerätelautstärke, Stummmodus und Browser können die Tonausgabe beeinflussen.</li><li><strong>Bildschirm im Blick behalten:</strong> Verhindere nach Möglichkeit, dass iPad oder Mac während des Kochens den Bildschirm sperren. Signale im Hintergrund sind nicht unter allen Umständen zuverlässig.</li><li><strong>Neuer Kochvorgang:</strong> Beim erneuten Öffnen beginnt das Mischpult wieder mit vier sichtbaren Timern und leeren Zeiten.</li><li><strong>Alles löschen:</strong> Mit ↺ Alle zurücksetzen bereitest du das Mischpult für ein neues Menü vor.</li></ul>
+        <div class="guide-example"><strong>Kurz gesagt:</strong> Du gibst die Zeiten vor. Das Küchen-Mischpult übernimmt das Zählen, Erinnern und im Menü-Modus die Abstimmung der Startzeitpunkte.</div>
+      </section>
+    </div>
+    <footer class="guide-footer">Küchen-Mischpult · Bedienungsanleitung 3.1 · Schließen mit ✕ oder Esc</footer>
   </div>
 </div>
 <script>
@@ -424,6 +508,52 @@ $('#allReset').addEventListener('click',()=>{
  updateWake();
  toast('Alle 8 Timer wurden zurückgesetzt.');
 });
+
+// V3.1: Hilfedialog unabhängig von Timerstatus und ohne Timer zurückzusetzen.
+const guideOverlay=$('#guideOverlay');
+let guideReturnFocus=null;
+function selectGuideSection(section,focusTab=false){
+ const tab=guideOverlay.querySelector('[data-guide="'+section+'"]');
+ if(!tab)return;
+ guideOverlay.querySelectorAll('[data-guide]').forEach(el=>{
+  const chosen=el===tab;el.setAttribute('aria-selected',String(chosen));el.tabIndex=chosen?0:-1;
+ });
+ guideOverlay.querySelectorAll('[data-guide-page]').forEach(el=>{el.hidden=el.dataset.guidePage!==section});
+ $('#guideContent').scrollTop=0;
+ if(focusTab)tab.focus({preventScroll:true});
+}
+function openGuide(){
+ if(!$('#timeOverlay').hidden)closePicker();
+ guideReturnFocus=document.activeElement;
+ guideOverlay.hidden=false;document.body.classList.add('guide-open');
+ selectGuideSection('overview');$('#guideClose').focus({preventScroll:true});
+}
+function closeGuide(){
+ guideOverlay.hidden=true;document.body.classList.remove('guide-open');
+ if(guideReturnFocus&&guideReturnFocus.isConnected)guideReturnFocus.focus({preventScroll:true});
+}
+$('#guideOpen').addEventListener('click',openGuide);
+$('#guideClose').addEventListener('click',closeGuide);
+guideOverlay.addEventListener('click',e=>{if(e.target===guideOverlay)closeGuide()});
+guideOverlay.querySelectorAll('[data-guide]').forEach(tab=>tab.addEventListener('click',()=>selectGuideSection(tab.dataset.guide)));
+guideOverlay.querySelector('.guide-tabs').addEventListener('keydown',e=>{
+ if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+ const tabs=[...guideOverlay.querySelectorAll('[data-guide]')];let idx=tabs.indexOf(document.activeElement);
+ if(idx<0)return;
+ e.preventDefault();
+ idx=e.key==='Home'?0:e.key==='End'?tabs.length-1:(idx+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
+ selectGuideSection(tabs[idx].dataset.guide,true);
+});
+guideOverlay.addEventListener('keydown',e=>{
+ if(e.key==='Escape'){e.preventDefault();closeGuide();return}
+ if(e.key!=='Tab')return;
+ const nodes=[...guideOverlay.querySelectorAll('button:not([disabled]):not([tabindex="-1"])')].filter(x=>x.getClientRects().length);
+ if(!nodes.length)return;
+ const first=nodes[0],last=nodes[nodes.length-1];
+ if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+ else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+});
+
 window.addEventListener('resize',layout);render();menuUi();tick();setInterval(tick,250);
 })();
 </script>
